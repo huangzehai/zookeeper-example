@@ -10,7 +10,7 @@ import java.util.Random;
 
 public class Master implements Watcher {
 
-    private Logger logger = LoggerFactory.getLogger(Master.class);
+    private static Logger logger = LoggerFactory.getLogger(Master.class);
     private ZooKeeper zk;
     private String hostPort;
 
@@ -18,7 +18,7 @@ public class Master implements Watcher {
 
     String serviceId = Integer.toHexString(random.nextInt());
 
-    boolean isLeader = false;
+    static boolean isLeader = false;
 
     public Master(String hostPort) {
         this.hostPort = hostPort;
@@ -32,8 +32,15 @@ public class Master implements Watcher {
 
         Master master = new Master(args[0]);
         master.startZk();
-        master.runForMaster();
-        Thread.sleep(10000);
+        master.exists();
+//        master.runForMaster();
+//        if (isLeader) {
+//            logger.info("I am a reader");
+//            Thread.sleep(10000);
+//        } else {
+//            logger.info("Some one else is a leader");
+//        }
+        Thread.sleep(60000);
         master.stopZk();
     }
 
@@ -85,6 +92,25 @@ public class Master implements Watcher {
                 e.printStackTrace();
             }
         }
+    }
+
+    void exists() {
+        zk.exists("/master", event -> {
+            if (event.getType() == Event.EventType.NodeDeleted) {
+                logger.info("Node deleted");
+            }
+        }, (rc, path, ctx, stat) -> {
+            switch (KeeperException.Code.get(rc)) {
+                case CONNECTIONLOSS:
+                    logger.info("Connection loss");
+                    break;
+                case OK:
+                    logger.info("OK");
+                    break;
+                default:
+                    break;
+            }
+        }, null);
     }
 
 }
